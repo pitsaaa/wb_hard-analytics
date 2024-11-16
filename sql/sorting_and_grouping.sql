@@ -229,24 +229,22 @@ seller_id|category_pair|
  * Тогда будем считать что продавец зарегистрировался в 2022 году, если хотя бы одна 
  * из его дат регистрации выполняет условие
  */
-
 select seller_id, string_agg(category, ' - ' order by category) as "category_pair"
-from(
-select seller_id, category, sum(revenue) as "sum_rev"
-from sellers
-group by seller_id, category 
+from sellers s
+where seller_id in (
+select seller_id 
+from sellers s2 
+group by seller_id, category
 having min(date_part('year', date_reg)) = 2022
-order by 1 desc) s1
-group by seller_id
-having sum("sum_rev") > 75000 and 
-count(distinct category) = 2;
+)
+group by seller_id 
+having sum(revenue) > 75000
+and count(distinct category) = 2
 
 /* Вывод:
 
-seller_id|category_pair   |
----------+----------------+
-       85|Engine - Fitness|
-       89|Cooking - Game  |
-       93|Party - Personal|
+seller_id|category_pair|
+---------+-------------+
+      133|Book - Dog   |
  */
 
