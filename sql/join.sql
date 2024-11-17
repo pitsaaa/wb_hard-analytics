@@ -107,113 +107,55 @@ Tonya Watson         |              2|              2|                   9740|
  */
 
 
--- Часть 2. Задание 1
+-- Часть 2.
 /*
- * Вычислить общую сумму продаж для каждой категории продуктов.
- */
-
-select p.product_category, sum(order_ammount) as "total_amount"
-from products p join orders o using(product_id)
-group by p.product_category ;
-
-/* Вывод:
-
-product_category |total_amount|
------------------+------------+
-Молочные продукты|     2731243|
-Овощи            |     1379235|
-Мясо             |     2560614|
-Фрукты           |     3867485|
- */
-
-
--- Часть 2. Задание 2
-/*
- * Определить категорию продукта с наибольшей общей суммой продаж.
- */
-
-select product_category
-from (
-select p.product_category, sum(order_ammount) as "total_amount"
-from products p join orders o using(product_id)
-group by p.product_category
-) cat
-order by "total_amount" desc
-limit 1;
-
-/* Вывод:
-
-product_category|
-----------------+
-Напитки         |
- */
-
-
--- Часть 2. Задание 3
-/*
- * Для каждой категории продуктов, определить продукт с
- * максимальной суммой продаж в этой категории.
+ * Необходимо написать SQL-запрос, который выполнит 3 задачи:
+ * 1. Вычислит общую сумму продаж для каждой категории продуктов
+ * 2. Определит категорию продукта с наибольшей общей суммой продаж
+ * 3. Для каждой категории продуктов, определит продукт с максимальной 
+ * суммой продаж в этой категории
  * 
- * Так как большинство названий продуктов повторяются в 
- * таблицу products, будем выводить не только название продукта,
- * но и его id
- * 
- * Первое решение: используя оконные функции (проще)
+ * При выявлении продукта с максимальной суммой продаж, будем считать за
+ * продукт - уникальный набор product_id + product_name, так как в таблице products
+ * много товаров с одинаковым названием, но разными id
  */
 
-select p.product_category ,
-p.product_name ,
-p.product_id ,
-sum(o.order_ammount) as "total_ammount"
-from products p join orders o using(product_id)
-group by p.product_category ,
-p.product_name,
-p.product_id
-order by rank() over (partition by p.product_category order by sum(o.order_ammount) desc)
-limit (select count(distinct product_category) from products);
+with prods as (
+	select p.product_category, sum(order_ammount) as "total_amount"
+	from products p join orders o using(product_id)
+	group by p.product_category
+),
+prods_amout as (
+	select p.product_id, p.product_name, p.product_category, sum(order_ammount) as "prod_total_amount"
+	from products p join orders o using(product_id)
+	group by p.product_id, p.product_name, p.product_category
+)
+select pr.product_category, pr."total_amount", (
+	select pr2.product_category
+	from prods pr2
+	order by pr2."total_amount" desc
+	limit 1
+) as "best_category",
+(
+	select pa.product_name
+	from prods_amout pa
+	where pa.product_category = pr.product_category
+	order by pa."prod_total_amount" desc 
+	limit 1
+) as "top_seller_in_category"
+from prods pr
+;
 
 /* Вывод:
 
-product_category |product_name|product_id|total_ammount|
------------------+------------+----------+-------------+
-Напитки          |Кофе        |       149|       411147|
-Овощи            |Брокколи    |       107|       509213|
-Зерновые         |Овсянка     |        94|       503965|
-Мясо             |Курица      |         4|       529642|
- */
-
-/*
- * Второе решение, не используя оконных функций (сложнее)
- */
-
-select p.product_category,
-p.product_name,
-p.product_id,
-prods."total_amount"
-from products p join
-(
-select p.product_id, p.product_name, p.product_category, sum(order_ammount) as "total_amount"
-from products p join orders o using(product_id)
-group by p.product_id, p.product_name, p.product_category
-) prods using(product_id)
-where "total_amount" = (
-select max("total_amount") from
-(
-select pr2.product_id, pr2.product_name, pr2.product_category, sum(order_ammount) as "total_amount"
-from products pr2 join orders o2 using(product_id)
-group by pr2.product_id, pr2.product_name, pr2.product_category
-) tmp
-where tmp.product_category = p.product_category
-);
-
-/* Вывод:
-
-product_category |product_name|product_id|total_amount|
------------------+------------+----------+------------+
-Овощи            |Брокколи    |       107|      509213|
-Молочные продукты|Масло       |         1|      249615|
-Зерновые         |Овсянка     |        94|      503965|
-Фрукты           |Банан       |       115|      453777|
+product_category |total_amount|best_category|top_seller_in_category|
+-----------------+------------+-------------+----------------------+
+Молочные продукты|     2731243|Напитки      |Масло                 |
+Овощи            |     1379235|Напитки      |Брокколи              |
+Мясо             |     2560614|Напитки      |Курица                |
+Фрукты           |     3867485|Напитки      |Банан                 |
+Зерновые         |     3633048|Напитки      |Овсянка               |
+Напитки          |     4706321|Напитки      |Кофе                  |
  */
 
 
